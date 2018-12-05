@@ -6,7 +6,7 @@ name = "pypi"
 [packages]
 gym-showdown = {editable = true, path = "./../gym-showdown"}
 click = "*"
-spinup = "*"
+spinup = {editable = true, path = "./../spinningup"}
 
 [requires]
 python_version = "3.6"
