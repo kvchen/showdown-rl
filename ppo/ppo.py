@@ -21,8 +21,11 @@ class PPOBuffer:
     for calculating the advantages of state-action pairs.
     """
 
-    def __init__(self, obs_dim, act_dim, size, gamma=0.99, lam=0.95):
+    def __init__(self, obs_dim, act_mask_dim, act_dim, size, gamma=0.99, lam=0.95):
         self.obs_buf = np.zeros(core.combined_shape(size, obs_dim), dtype=np.float32)
+        self.act_mask_buf = np.zeros(
+            core.combined_shape(size, act_mask_dim), dtype=np.float32
+        )
         self.act_buf = np.zeros(core.combined_shape(size, act_dim), dtype=np.float32)
         self.adv_buf = np.zeros(size, dtype=np.float32)
         self.rew_buf = np.zeros(size, dtype=np.float32)
@@ -32,12 +35,13 @@ class PPOBuffer:
         self.gamma, self.lam = gamma, lam
         self.ptr, self.path_start_idx, self.max_size = 0, 0, size
 
-    def store(self, obs, act, rew, val, logp):
+    def store(self, obs, act_mask, act, rew, val, logp):
         """
         Append one timestep of agent-environment interaction to the buffer.
         """
         assert self.ptr < self.max_size  # buffer has to have room so you can store
         self.obs_buf[self.ptr] = obs
+        self.act_mask_buf[self.ptr] = act_mask
         self.act_buf[self.ptr] = act
         self.rew_buf[self.ptr] = rew
         self.val_buf[self.ptr] = val
@@ -84,7 +88,14 @@ class PPOBuffer:
         # the next two lines implement the advantage normalization trick
         adv_mean, adv_std = mpi_statistics_scalar(self.adv_buf)
         self.adv_buf = (self.adv_buf - adv_mean) / adv_std
-        return [self.obs_buf, self.act_buf, self.adv_buf, self.ret_buf, self.logp_buf]
+        return [
+            self.obs_buf,
+            self.act_mask_buf,
+            self.act_buf,
+            self.adv_buf,
+            self.ret_buf,
+            self.logp_buf,
+        ]
 
 
 """
@@ -196,6 +207,7 @@ def ppo(
 
     env = env_fn()
     obs_dim = env.observation_space.shape
+    act_mask_dim = env.action_space.n
     act_dim = env.action_space.shape
 
     # Share information about action space with policy architecture
@@ -203,20 +215,21 @@ def ppo(
 
     # Inputs to computation graph
     x_ph, a_ph = core.placeholders_from_spaces(env.observation_space, env.action_space)
+    am_ph = tf.placeholder(dtype=tf.int32, shape=(None, act_mask_dim))
     adv_ph, ret_ph, logp_old_ph = core.placeholders(None, None, None)
 
     # Main outputs from computation graph
-    pi, logp, logp_pi, v = actor_critic(x_ph, a_ph, **ac_kwargs)
+    pi, logp, logp_pi, v = actor_critic(x_ph, a_ph, am_ph, **ac_kwargs)
 
     # Need all placeholders in *this* order later (to zip with data from buffer)
-    all_phs = [x_ph, a_ph, adv_ph, ret_ph, logp_old_ph]
+    all_phs = [x_ph, am_ph, a_ph, adv_ph, ret_ph, logp_old_ph]
 
     # Every step, get: action, value, and logprob
     get_action_ops = [pi, v, logp_pi]
 
     # Experience buffer
     local_steps_per_epoch = int(steps_per_epoch / num_procs())
-    buf = PPOBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam)
+    buf = PPOBuffer(obs_dim, act_mask_dim, act_dim, local_steps_per_epoch, gamma, lam)
 
     # Count variables
     var_counts = tuple(core.count_vars(scope) for scope in ["pi", "v"])
@@ -249,7 +262,9 @@ def ppo(
     sess.run(sync_all_params())
 
     # Setup model saving
-    logger.setup_tf_saver(sess, inputs={"x": x_ph}, outputs={"pi": pi, "v": v})
+    logger.setup_tf_saver(
+        sess, inputs={"x": x_ph, "am": am_ph}, outputs={"pi": pi, "v": v}
+    )
 
     def update():
         inputs = {k: v for k, v in zip(all_phs, buf.get())}
@@ -283,20 +298,20 @@ def ppo(
         )
 
     start_time = time.time()
-    o, r, d, ep_ret, ep_len = env.reset(), 0, False, 0, 0
+    (o, am), r, d, ep_ret, ep_len = env.reset(), 0, False, 0, 0
 
     # Main loop: collect experience in env and update/log each epoch
     for epoch in range(epochs):
         for t in range(local_steps_per_epoch):
             a, v_t, logp_t = sess.run(
-                get_action_ops, feed_dict={x_ph: o.reshape(1, -1)}
+                get_action_ops, feed_dict={x_ph: o.reshape(1, -1), am_ph: am}
             )
 
             # save and log
-            buf.store(o, a, r, v_t, logp_t)
+            buf.store(o, am, a, r, v_t, logp_t)
             logger.store(VVals=v_t)
 
-            o, r, d, _ = env.step(a[0])
+            (o, am), r, d, _ = env.step(a[0])
             ep_ret += r
             ep_len += 1
 
@@ -305,12 +320,16 @@ def ppo(
                 if not (terminal):
                     print("Warning: trajectory cut off by epoch at %d steps." % ep_len)
                 # if trajectory didn't reach terminal state, bootstrap value target
-                last_val = r if d else sess.run(v, feed_dict={x_ph: o.reshape(1, -1)})
+                last_val = (
+                    r
+                    if d
+                    else sess.run(v, feed_dict={x_ph: o.reshape(1, -1), am_ph: am})
+                )
                 buf.finish_path(last_val)
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
                     logger.store(EpRet=ep_ret, EpLen=ep_len)
-                o, r, d, ep_ret, ep_len = env.reset(), 0, False, 0, 0
+                (o, am), r, d, ep_ret, ep_len = env.reset(), 0, False, 0, 0
 
         # Save model
         if (epoch % save_freq == 0) or (epoch == epochs - 1):
