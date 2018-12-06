@@ -6,7 +6,6 @@ import random
 import tensorflow as tf
 from functools import partial
 from gym_showdown.envs import ShowdownEnv
-
 from spinup.utils.run_utils import ExperimentGrid
 from spinup import ppo
 
