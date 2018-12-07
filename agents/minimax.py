@@ -62,9 +62,8 @@ def alpha_beta(env, battle, depth, alpha, beta, player_idx, last_move):
 
 
 def agent(env, depth=1):
-    best_value, best_move_idx = alpha_beta(
+    _, best_move_idx = alpha_beta(
         env, env.current_battle, depth, -float("inf"), float("inf"), 0, None
     )
 
-    print(best_value, best_move_idx)
     return best_move_idx

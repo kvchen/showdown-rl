@@ -7,9 +7,7 @@ name = "pypi"
 gym-showdown = {editable = true, path = "./../gym-showdown"}
 click = "*"
 spinup = {editable = true, path = "./../spinningup"}
+tqdm = "*"
 
 [requires]
 python_version = "3.6"
-
-[dev-packages]
-black = "*"

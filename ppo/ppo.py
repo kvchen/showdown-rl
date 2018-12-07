@@ -12,6 +12,7 @@ from spinup.utils.mpi_tools import (
     mpi_statistics_scalar,
     num_procs,
 )
+from tqdm import trange
 
 
 class PPOBuffer:
@@ -301,8 +302,8 @@ def ppo(
     (o, am), r, d, ep_ret, ep_len = env.reset(), 0, False, 0, 0
 
     # Main loop: collect experience in env and update/log each epoch
-    for epoch in range(epochs):
-        for t in range(local_steps_per_epoch):
+    for epoch in trange(epochs, desc="Epoch"):
+        for t in trange(local_steps_per_epoch, desc="Local Step", leave=False):
             a, v_t, logp_t = sess.run(
                 get_action_ops, feed_dict={x_ph: o.reshape(1, -1), am_ph: am}
             )
