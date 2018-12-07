@@ -5,5 +5,5 @@ import random
 
 def agent(env):
     """Agent that selects an available move at random."""
-    moves = env.curernt_battle["data"]["actions"][1]
+    moves = env.current_battle["actions"][1]
     return random.choice(moves)
