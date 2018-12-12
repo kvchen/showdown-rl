@@ -256,7 +256,7 @@ def ppo(
     train_pi = MpiAdamOptimizer(learning_rate=pi_lr).minimize(pi_loss)
     train_v = MpiAdamOptimizer(learning_rate=vf_lr).minimize(v_loss)
 
-    sess = tf.Session()
+    sess = tf.Session(graph=tf.get_default_graph())
     sess.run(tf.global_variables_initializer())
 
     # Sync params across processes
