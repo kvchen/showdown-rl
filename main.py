@@ -39,7 +39,7 @@ def main(
     if logdir is None:
         current_time = int(time.time())
         logdir = os.path.join(
-            "experiments", f"{format}_{opponent}_e{epochs}_s{steps}_current_time"
+            "experiments", f"{format}_{opponent}_e{epochs}_s{steps}_{current_time}"
         )
 
     agent_module = import_module("." + opponent, "agents")
