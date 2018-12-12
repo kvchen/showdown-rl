@@ -25,20 +25,20 @@ from ppo.ppo import ppo
 @click.option("--epochs", type=int, default=250)
 @click.option("--steps", type=int, default=4000)
 @click.option("--checkpoint", type=click.Path(exists=True))
-@click.option(
-    "--logdir",
-    type=click.Path(),
-    default=os.path.join(os.getcwd(), "experiments", int(time.time())),
-)
+@click.option("--logdir", type=click.Path())
 def main(
     format: str,
     opponent: str,
     epochs: int,
     steps: int,
     checkpoint: Optional[str],
+    logdir: Optional[str],
     *args,
-    **kwargs
+    **kwargs,
 ):
+    if logdir is None:
+        logdir = os.path.join("experiments", f"{format}_{opponent}_e{epochs}_s{steps}")
+
     agent_module = import_module("." + opponent, "agents")
     env_fn = partial(ShowdownEnv, agent_module.agent, {"formatid": format})
     ac_kwargs = {"hidden_sizes": (512, 512)}
@@ -49,7 +49,13 @@ def main(
             sess = tf.Session(graph=graph)
             restore_tf_graph(sess, checkpoint)
 
-        ppo(env_fn, epochs=epochs, steps_per_epoch=steps, ac_kwargs=ac_kwargs)
+        ppo(
+            env_fn,
+            epochs=epochs,
+            steps_per_epoch=steps,
+            ac_kwargs=ac_kwargs,
+            logger_kwargs={"output_dir": logdir},
+        )
 
 
 if __name__ == "__main__":
