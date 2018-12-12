@@ -21,10 +21,8 @@ from ppo.ppo import ppo
 @click.option("--steps", type=int, default=4000)
 def main(format: str, opponent: str, epochs: int, steps: int, *args, **kwargs):
     agent_module = import_module("." + opponent, "agents")
-    print(dir(agent_module))
-
     env_fn = partial(ShowdownEnv, agent_module.agent, {"formatid": format})
-    ac_kwargs = {"hidden_sizes": (256, 256)}
+    ac_kwargs = {"hidden_sizes": (512, 512)}
 
     with tf.Graph().as_default():
         ppo(env_fn, epochs=epochs, steps_per_epoch=steps, ac_kwargs=ac_kwargs)
