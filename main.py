@@ -37,11 +37,14 @@ def main(
     **kwargs,
 ):
     if logdir is None:
-        logdir = os.path.join("experiments", f"{format}_{opponent}_e{epochs}_s{steps}")
+        current_time = int(time.time())
+        logdir = os.path.join(
+            "experiments", f"{format}_{opponent}_e{epochs}_s{steps}_current_time"
+        )
 
     agent_module = import_module("." + opponent, "agents")
     env_fn = partial(ShowdownEnv, agent_module.agent, {"formatid": format})
-    ac_kwargs = {"hidden_sizes": (512, 512)}
+    ac_kwargs = {"hidden_sizes": (1024, 1024)}
 
     graph = tf.Graph()
     with graph.as_default():
