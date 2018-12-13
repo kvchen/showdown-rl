@@ -44,7 +44,7 @@ def main(
 
     agent_module = import_module("." + opponent, "agents")
     env_fn = partial(ShowdownEnv, agent_module.agent, {"formatid": format})
-    ac_kwargs = {"hidden_sizes": (1024, 1024)}
+    ac_kwargs = {"hidden_sizes": (512, 512, 512)}
 
     graph = tf.Graph()
     with graph.as_default():

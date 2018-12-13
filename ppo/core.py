@@ -32,18 +32,9 @@ def placeholders_from_spaces(*args):
     return [placeholder_from_space(space) for space in args]
 
 
-def mlp(
-    x,
-    hidden_sizes=(32,),
-    activation=tf.tanh,
-    output_activation=None,
-    use_batch_norm=True,
-):
+def mlp(x, hidden_sizes=(32,), activation=tf.tanh, output_activation=None):
     for h in hidden_sizes[:-1]:
-        x = tf.layers.dense(x, units=h)
-        if use_batch_norm:
-            x = tf.layers.batch_normalization(x, center=True, scale=True, training=True)
-        x = activation(x)
+        x = tf.layers.dense(x, units=h, activation=activation)
     return tf.layers.dense(x, units=hidden_sizes[-1], activation=output_activation)
 
 
