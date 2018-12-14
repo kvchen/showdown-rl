@@ -11,6 +11,7 @@ from functools import partial
 from gym_showdown.envs import ShowdownEnv
 from importlib import import_module
 from ppo.ppo import ppo
+from ppo.test_policy import load_policy, run_policy
 
 
 @click.command()
@@ -45,16 +46,19 @@ def main(
     env_fn = partial(ShowdownEnv, agent_module.agent, {"formatid": format})
     ac_kwargs = {"hidden_sizes": (512, 512, 512)}
 
-    graph = tf.Graph()
-    with graph.as_default():
-        ppo(
-            env_fn,
-            checkpoint_dir=checkpoint,
-            epochs=epochs,
-            steps_per_epoch=steps,
-            ac_kwargs=ac_kwargs,
-            logger_kwargs={"output_dir": logdir},
-        )
+    if checkpoint:
+        _, get_action = load_policy(checkpoint)
+        run_policy(env_fn(), get_action)
+    else:
+        graph = tf.Graph()
+        with graph.as_default():
+            ppo(
+                env_fn,
+                epochs=epochs,
+                steps_per_epoch=steps,
+                ac_kwargs=ac_kwargs,
+                logger_kwargs={"output_dir": logdir},
+            )
 
 
 if __name__ == "__main__":
