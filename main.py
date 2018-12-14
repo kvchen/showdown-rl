@@ -9,7 +9,6 @@ import click
 import tensorflow as tf
 from functools import partial
 from gym_showdown.envs import ShowdownEnv
-from spinup.utils.logx import restore_tf_graph
 from importlib import import_module
 from ppo.ppo import ppo
 
@@ -48,12 +47,9 @@ def main(
 
     graph = tf.Graph()
     with graph.as_default():
-        if checkpoint:
-            sess = tf.Session(graph=graph)
-            restore_tf_graph(sess, checkpoint)
-
         ppo(
             env_fn,
+            checkpoint_dir=checkpoint,
             epochs=epochs,
             steps_per_epoch=steps,
             ac_kwargs=ac_kwargs,

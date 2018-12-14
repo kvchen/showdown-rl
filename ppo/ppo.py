@@ -3,7 +3,7 @@ import tensorflow as tf
 import gym
 import time
 import ppo.core as core
-from spinup.utils.logx import EpochLogger
+from spinup.utils.logx import EpochLogger, restore_tf_graph
 from spinup.utils.mpi_tf import MpiAdamOptimizer, sync_all_params
 from spinup.utils.mpi_tools import (
     mpi_fork,
@@ -110,6 +110,7 @@ with early stopping based on approximate KL
 
 def ppo(
     env_fn,
+    checkpoint_dir=None,
     actor_critic=core.mlp_actor_critic,
     ac_kwargs=dict(),
     seed=0,
@@ -266,6 +267,9 @@ def ppo(
     logger.setup_tf_saver(
         sess, inputs={"x": x_ph, "am": am_ph}, outputs={"pi": pi, "v": v}
     )
+
+    if checkpoint_dir:
+        restore_tf_graph(sess, checkpoint_dir)
 
     def update():
         inputs = {k: v for k, v in zip(all_phs, buf.get())}
