@@ -44,7 +44,7 @@ def main(
 
     agent_module = import_module("." + opponent, "agents")
     env_fn = partial(ShowdownEnv, agent_module.agent, {"formatid": format})
-    ac_kwargs = {"hidden_sizes": (512, 512, 512)}
+    ac_kwargs = {"hidden_sizes": (2048, 1024, 512)}
 
     if checkpoint:
         _, get_action = load_policy(checkpoint)
